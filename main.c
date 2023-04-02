@@ -1,54 +1,79 @@
-#include Arduino.h
+#include <avr/io.h>
+#include <util/delay.h>
 
-// Pin Definitions
-#define M1 5   // Left Motor
-#define M2 6   // Right Motor
+#define SENSOR1_PIN PC0
+#define SENSOR2_PIN PC1
+#define SENSOR3_PIN PC2
+#define SENSOR4_PIN PC3
+#define SENSOR5_PIN PC4
 
-// Constants
-#define SPEED 150      // Motor speed
+#define MOTOR1_PIN PB1
+#define MOTOR2_PIN PB2
 
-void setup() {
-  pinMode(M1, OUTPUT);
-  pinMode(M2, OUTPUT);
+void init_pwm() {
+  // Seta PWM pins como output
+  DDRB |= (1 << MOTOR1_PIN) | (1 << MOTOR2_PIN);
+
+  // Não entendi muito bem o que faz, mas no guia tava usando
+  TCCR1A |= (1 << WGM11) | (1 << COM1A1) | (1 << COM1B1);
+  TCCR1B |= (1 << WGM12) | (1 << WGM13) | (1 << CS11);
+
+  // Seta a frequencia do PWM  para 62.5kHz
+  ICR1 = 399;
 }
 
-void loop() {
-  // Move the robot forward
-  forward();
+void init_adc() {
+  // ADC reference voltage to AVCC
+  ADMUX |= (1 << REFS0);
 
-  // Turn the robot left
-  left();
+  // ADC clock prescaler to 128
+  ADCSRA |= (1 << ADPS2) | (1 << ADPS1) | (1 << ADPS0);
 
-  // Turn the robot right
-  right();
-
-  // Stop the robot
-  stop();
+  // Liga ADC
+  ADCSRA |= (1 << ADEN);
 }
 
-void forward() {
-  digitalWrite(M1, HIGH);
-  digitalWrite(M2, HIGH);
-  analogWrite(M1, SPEED);
-  analogWrite(M2, SPEED);
+int read_sensor(int sensor_pin) {
+  // Selecionao cana de ADC baseado no pin do sensor
+  ADMUX = (ADMUX & 0xF0) | (sensor_pin & 0x0F);
+
+  // Começa a conversão ADC
+  ADCSRA |= (1 << ADSC);
+
+  // Espera conversão completar
+  while (ADCSRA & (1 << ADSC));
+
+  // Retorna resultado do ADC
+  return ADC;
 }
 
-void left() 
-{
-  digitalWrite(M1, HIGH);
-  digitalWrite(M2, LOW);
-  analogWrite(M1, SPEED);
-  analogWrite(M2, SPEED);
-}
+int main() {
+  // Inicializa PWM e ADC
+  init_pwm();
+  init_adc();
 
-void right() {
-  digitalWrite(M1, LOW);
-  digitalWrite(M2, HIGH);
-  analogWrite(M1, SPEED);
-  analogWrite(M2, SPEED);
-}
+  while (1) {
+    // Lê o valor dos sensores
+    int sensor1 = read_sensor(SENSOR1_PIN);
+    int sensor2 = read_sensor(SENSOR2_PIN);
+    int sensor3 = read_sensor(SENSOR3_PIN);
+    int sensor4 = read_sensor(SENSOR4_PIN);
+    int sensor5 = read_sensor(SENSOR5_PIN);
 
-void stop() {
-  digitalWrite(M1, LOW);
-  digitalWrite(M2, LOW);
+    // Calcula erro
+    int error = (sensor1 * 1 + sensor2 * 2 + sensor3 * 0 - sensor4 * 2 - sensor5 * 1) / (sensor1 + sensor2 + sensor3 + sensor4 + sensor5);
+
+    // Calcula velocidade dos motores
+    int motor1_speed = 100 + error * 5;
+    int motor2_speed = 100 - error * 5;
+
+    // Seta velocidade dos motores usando PWM
+    OCR1A = motor1_speed;
+    OCR1B = motor2_speed;
+
+    // Dá uma segurada
+    _delay_ms(10);
+  }
+
+  return 0;
 }
