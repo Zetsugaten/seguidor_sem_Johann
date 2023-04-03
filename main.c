@@ -1,4 +1,5 @@
 //Então, ainda to tentando fazer o código. Não entendi muito as referências e to desvendando devagar. PFVR ME DÊ FEEDBACKS SOBRE!!!!
+//Atualizado dia 02/04
 
 #include <avr/io.h>
 #include <util/delay.h>
