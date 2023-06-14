@@ -1,5 +1,5 @@
 //Então, ainda to tentando fazer o código. Não entendi muito as referências e to desvendando devagar. PFVR ME DÊ FEEDBACKS SOBRE!!!!
-//Atualizado dia 02/04
+//Atualizado dia 14/06
 
 #include <avr/io.h>
 #include <util/delay.h>
@@ -37,7 +37,7 @@ void init_adc() {
 }
 
 int read_sensor(int sensor_pin) {
-  // Selecionao cana de ADC baseado no pin do sensor
+  // Selecionao canal de ADC baseado no pin do sensor
   ADMUX = (ADMUX & 0xF0) | (sensor_pin & 0x0F);
 
   // Começa a conversão ADC
@@ -55,16 +55,27 @@ int main() {
   init_pwm();
   init_adc();
 
+  // Definir array para armazenar os valores dos sensores
+  int sensor_pins[] = {SENSOR1_PIN, SENSOR2_PIN, SENSOR3_PIN, SENSOR4_PIN, SENSOR5_PIN};
+  int num_sensors = sizeof(sensor_pins) / sizeof(sensor_pins[0]);
+
   while (1) {
-    // Lê o valor dos sensores
-    int sensor1 = read_sensor(SENSOR1_PIN);
-    int sensor2 = read_sensor(SENSOR2_PIN);
-    int sensor3 = read_sensor(SENSOR3_PIN);
-    int sensor4 = read_sensor(SENSOR4_PIN);
-    int sensor5 = read_sensor(SENSOR5_PIN);
+    // Lê os valores dos sensores e calcula soma e numerador do erro
+    int sensor_values[num_sensors];
+    int sensor_sum = 0;
+    int error_numerator = 0;
+
+    for (int i = 0; i < num_sensors; i++) {
+      sensor_values[i] = read_sensor(sensor_pins[i]);
+      sensor_sum += sensor_values[i];
+      error_numerator += sensor_values[i] * (i == 0 ? 1 : i + 1);
+    }
+
+    // Calcula o inverso da soma dos sensores
+    float inverse_sum = 1.0f / sensor_sum;
 
     // Calcula erro
-    int error = (sensor1 * 1 + sensor2 * 2 + sensor3 * 0 - sensor4 * 2 - sensor5 * 1) / (sensor1 + sensor2 + sensor3 + sensor4 + sensor5);
+    float error = error_numerator * inverse_sum;
 
     // Calcula velocidade dos motores
     int motor1_speed = 100 + error * 5;
